@@ -9,10 +9,15 @@ from PIL import Image
 
 from .draw import blend
 from .effect import Effect
+from .physics import fall
 from .scene import Stage
 from .sprite import Sprite
 
-GRAVITY = 400.0  # pixels per second², for dropping onto the stage
+# States. Subclasses can add their own.
+AIR = "air"  # dropping in or jumping
+IDLE = "idle"  # standing around
+WALK = "walk"  # walking around
+GOTO = "goto"  # walking to a place it was sent to, then waiting there
 
 
 @dataclass(eq=False)
@@ -23,11 +28,11 @@ class Walker:
     y: float = 0.0  # offset above the ground (negative = higher)
     velocity: float = 0.0  # vertical, while dropping
     speed: float = 12.0  # pixels per second while walking
-    state: str = "drop"  # "drop" (in the air), "idle", "walk" or "goto"
+    state: str = AIR
     timer: float = 0.0  # seconds left in the current state
     phase: float = 0.0  # step cycle while walking
     clock: float = 0.0  # seconds since appearing, for the jiggle while standing
-    target: float = 0.0  # where to go in state "goto" (left edge)
+    target: float = 0.0  # where to go in state GOTO (left edge)
     effects: list[Effect] = field(default_factory=list)  # drawn on top
 
     @classmethod
@@ -48,13 +53,13 @@ class Walker:
 
     def go_to(self, x: float, speed: float) -> None:
         """Walks to x (the left edge) and stays there until told otherwise."""
-        self.state, self.target, self.speed = "goto", x, speed
+        self.state, self.target, self.speed = GOTO, x, speed
         if x != self.x:
             self.direction = 1 if x > self.x else -1
 
     @property
     def arrived(self) -> bool:
-        return self.state == "goto" and self.x == self.target
+        return self.state == GOTO and self.x == self.target
 
     def stop(self, stage: Stage) -> None:
         """Stands still for a moment, then goes on as usual."""
@@ -62,13 +67,13 @@ class Walker:
 
     def jump(self, speed: float) -> None:
         """Jumps up with the given speed (pixels per second) and lands again."""
-        self.state, self.velocity = "drop", -speed
+        self.state, self.velocity = AIR, -speed
 
     @property
     def available(self) -> bool:
         """On the ground and going about its usual business, so free for
         something new."""
-        return self.state in ("idle", "walk")
+        return self.state in (IDLE, WALK)
 
     @property
     def center(self) -> float:
@@ -85,21 +90,20 @@ class Walker:
 
     def move(self, dt: float, stage: Stage) -> None:
         """The state machine; subclasses can add states."""
-        if self.state == "goto":
+        if self.state == GOTO:
             distance = self.target - self.x
             step = self.speed * dt
             self.x = self.target if abs(distance) <= step else self.x + step * (1 if distance > 0 else -1)
             self.phase += dt * self.speed / 8
             return
-        if self.state == "drop":
-            self.velocity += GRAVITY * dt
-            self.y = min(0.0, self.y + self.velocity * dt)
+        if self.state == AIR:
+            self.y, self.velocity = fall(self.y, self.velocity, dt)
             if self.y >= 0:
                 self._start_idle(stage)
             return
 
         self.timer -= dt
-        if self.state == "idle":
+        if self.state == IDLE:
             # Sometimes look the other way while standing.
             if stage.rng.random() < 0.3 * dt:
                 self.direction = -self.direction
@@ -116,11 +120,11 @@ class Walker:
                 self._start_idle(stage)
 
     def _start_idle(self, stage: Stage) -> None:
-        self.state, self.timer, self.phase = "idle", stage.rng.uniform(1.0, 4.0), 0.0
+        self.state, self.timer, self.phase = IDLE, stage.rng.uniform(1.0, 4.0), 0.0
         self.y, self.velocity = 0.0, 0.0
 
     def _start_walk(self, stage: Stage) -> None:
-        self.state, self.timer = "walk", stage.rng.uniform(1.5, 5.0)
+        self.state, self.timer = WALK, stage.rng.uniform(1.5, 5.0)
         self.direction = stage.rng.choice((-1, 1))
         self.speed = stage.rng.uniform(8.0, 20.0)
 
@@ -134,9 +138,9 @@ class Walker:
         party icons in the Pokémon games, one pixel up and down four times
         a second.
         """
-        if self.state in ("walk", "goto") and not self.arrived:
+        if self.state in (WALK, GOTO) and not self.arrived:
             return -abs(math.sin(math.pi * self.phase)) * 2
-        if self.state == "idle":
+        if self.state == IDLE:
             return -1.0 if int(self.clock * 4) % 2 else 0.0
         return 0.0
 

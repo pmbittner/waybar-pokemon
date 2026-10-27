@@ -15,6 +15,8 @@ CHEW = BITE / 4  # squashed for this long, twice per bite
 SQUASH = 2  # pixels
 JOY = 60.0  # speed of the happy jump after a meal, pixels per second
 
+EAT = "eat"  # the state while eating, in addition to the walker's
+
 
 @dataclass(eq=False)
 class Pokemon(Walker):
@@ -40,13 +42,13 @@ class Pokemon(Walker):
 
     def eat(self, berry: Berry) -> None:
         self.racing_for, self.meal, self.meal_clock = None, berry, 0.0
-        self.state = "eat"
+        self.state = EAT
         self.direction = 1 if berry.center > self.center else -1
 
     # Update
 
     def move(self, dt: float, stage: Stage) -> None:
-        if self.state == "eat":
+        if self.state == EAT:
             self.meal_clock += dt
             self._munch()
         else:
@@ -65,7 +67,7 @@ class Pokemon(Walker):
     @property
     def chewing(self) -> bool:
         """Squashed: in the first and third quarter of every bite."""
-        return self.state == "eat" and int(self.meal_clock / CHEW) % 2 == 0
+        return self.state == EAT and int(self.meal_clock / CHEW) % 2 == 0
 
     # Draw
 

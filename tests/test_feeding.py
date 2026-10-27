@@ -8,6 +8,7 @@ from waybar_pokemon import engine
 from waybar_pokemon.pokemon import party
 from waybar_pokemon.pokemon.berry import Berry
 from waybar_pokemon.pokemon.habitat import Habitat
+from waybar_pokemon.pokemon.creature import EAT
 from waybar_pokemon.pokemon.heart import Heart
 
 
@@ -50,15 +51,15 @@ def test_the_closest_one_in_sight_wins(sprites):
     berry = lay_berry(habitat, 100)  # centers: berry 105, near 70, far 30, away 230
 
     run(habitat, 1)
-    assert far.racing_for is berry or far.state == "eat" or near.state == "eat"
-    run(habitat, 5, until=lambda: near.state == "eat")
-    assert near.state == "eat"
-    assert far.racing_for is None and far.state != "eat"
+    assert far.racing_for is berry or far.state == EAT or near.state == EAT
+    run(habitat, 5, until=lambda: near.state == EAT)
+    assert near.state == EAT
+    assert far.racing_for is None and far.state != EAT
     assert away.racing_for is None
 
     run(habitat, 5, until=lambda: happy(near))
     assert habitat.berries == []  # gone with the last bite
-    assert happy(near) and near.state != "eat"
+    assert happy(near) and near.state != EAT
 
 
 def test_a_berry_nobody_sees_stays():
@@ -72,10 +73,10 @@ def test_a_despawned_eater_leaves_the_berry_to_the_others(sprites):
     habitat = habitat_with(25, 1)
     eater, other = place(habitat, 1, 80), place(habitat, 2, 0)  # other out of sight
     berry = lay_berry(habitat, 100)
-    run(habitat, 3, until=lambda: eater.state == "eat")
-    assert eater.state == "eat"
+    run(habitat, 3, until=lambda: eater.state == EAT)
+    assert eater.state == EAT
 
     party.remove(lambda members: [m for m in members if m.uid == 1])
     place(habitat, 2, 60)  # comes into sight
-    run(habitat, 10, until=lambda: other.state == "eat")
-    assert other.state == "eat" and berry in habitat.berries
+    run(habitat, 10, until=lambda: other.state == EAT)
+    assert other.state == EAT and berry in habitat.berries

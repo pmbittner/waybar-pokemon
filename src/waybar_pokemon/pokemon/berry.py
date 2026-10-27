@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from PIL import Image
 
 from ..engine import Stage, blend
-from ..engine.walker import GRAVITY
+from ..engine.physics import fall
 
 BITES = 3
 
@@ -40,8 +40,7 @@ class Berry:
 
     def update(self, dt: float, stage: Stage) -> None:
         if not self.landed:
-            self.velocity += GRAVITY * dt
-            self.y = min(0.0, self.y + self.velocity * dt)
+            self.y, self.velocity = fall(self.y, self.velocity, dt)
 
     def draw(self, frame: Image.Image, stage: Stage) -> None:
         """Smaller with every bite, standing on the ground."""

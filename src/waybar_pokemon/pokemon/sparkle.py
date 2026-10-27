@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from PIL import Image
 
 from ..engine import Stage, Walker, blend
+from ..engine.walker import AIR
 
 PERIOD = 2.0  # seconds from one twinkle to the next
 DURATION = 0.5  # seconds a twinkle lasts
@@ -51,7 +52,7 @@ class Sparkle:
 
     def draw(self, frame: Image.Image, walker: Walker, stage: Stage) -> None:
         size = self.size
-        if not size or walker.state == "drop":  # not while in the air
+        if not size or walker.state == AIR:
             return
         left, top, width, height = walker.box(stage)
         x = left + int(self.spot[0] * width)
