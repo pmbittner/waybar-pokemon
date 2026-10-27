@@ -1,11 +1,11 @@
 """The daemon: shows the party's Pokémon and the berries, and writes the frames for the bar."""
 
-import fcntl
 import signal
 import sys
 import threading
+from contextlib import ExitStack
 
-from . import engine, paths
+from . import engine, files, paths
 from .config import Config
 from .pokemon import sprites
 from .pokemon.habitat import Habitat
@@ -14,13 +14,15 @@ from .pokemon.habitat import Habitat
 def run(config: Config) -> None:
     # Only one daemon at a time: two would draw different habitats into the
     # same frame file, and the Pokémon would jump between them.
-    paths.STATE_DIR.mkdir(parents=True, exist_ok=True)
-    lock = (paths.STATE_DIR / "daemon.lock").open("w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        sys.exit("waybar-pokemon: the daemon is already running")
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(files.locked(paths.DAEMON_LOCK, wait=False))
+        except BlockingIOError:
+            sys.exit("waybar-pokemon: the daemon is already running")
+        _run(config)
 
+
+def _run(config: Config) -> None:
     # waybar reloads on SIGUSR2 and toggles on SIGUSR1, and these are sent
     # with `pkill -USR2 waybar`, which also matches this program's name
     # (home-manager does that whenever waybar's config changes). Python

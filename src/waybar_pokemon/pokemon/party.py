@@ -4,13 +4,13 @@ The commands add and remove members; the daemon watches the file and shows
 its members. A lock file keeps concurrent commands from losing changes.
 """
 
-import fcntl
 import json
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, fields
 from typing import Callable, Iterator
 
 from .. import paths
+from ..files import locked, write_atomic
 
 MAX_SIZE = 10  # more would not fit into a small habitat
 
@@ -37,17 +37,13 @@ def load() -> list[Member]:
 
 
 def _save(members: list[Member]) -> None:
-    temporary = paths.PARTY_FILE.with_suffix(".json.part")
-    temporary.write_text(json.dumps([asdict(m) for m in members], indent=2))
-    temporary.replace(paths.PARTY_FILE)
+    write_atomic(paths.PARTY_FILE, json.dumps([asdict(m) for m in members], indent=2).encode())
 
 
 @contextmanager
 def editing() -> Iterator[list[Member]]:
     """Yields the party as a list to change; saves it afterwards."""
-    paths.STATE_DIR.mkdir(parents=True, exist_ok=True)
-    with (paths.STATE_DIR / "party.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with locked(paths.PARTY_LOCK):
         members = load()
         yield members
         _save(members)

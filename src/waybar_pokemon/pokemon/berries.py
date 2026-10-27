@@ -5,12 +5,10 @@ requests and drops the berries. Unlike the party, berries are not kept
 across restarts.
 """
 
-import fcntl
 import random
-from contextlib import contextmanager
-from typing import Iterator
 
 from .. import paths
+from ..files import locked
 from . import names
 
 # The berries with icons in PokéSprite (see sprites.py), by PokeAPI's
@@ -44,17 +42,9 @@ def random_name(rng: random.Random | None = None) -> str:
     return (rng or random).choice(NAMES)
 
 
-@contextmanager
-def _locked() -> Iterator[None]:
-    paths.STATE_DIR.mkdir(parents=True, exist_ok=True)
-    with (paths.STATE_DIR / "berries.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
-
-
 def request(name: str) -> None:
     """Asks the daemon to drop a berry."""
-    with _locked(), paths.BERRY_REQUESTS.open("a") as file:
+    with locked(paths.BERRY_LOCK), paths.BERRY_REQUESTS.open("a") as file:
         file.write(name + "\n")
 
 
@@ -62,7 +52,7 @@ def take_requests() -> list[str]:
     """The berries to drop since the last call (for the daemon)."""
     if not paths.BERRY_REQUESTS.exists():  # the usual case, without locking
         return []
-    with _locked():
+    with locked(paths.BERRY_LOCK):
         try:
             lines = paths.BERRY_REQUESTS.read_text().split()
             paths.BERRY_REQUESTS.unlink()

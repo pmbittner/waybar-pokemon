@@ -12,11 +12,14 @@ def _xdg_dir(variable: str, fallback: str) -> Path:
 CACHE_DIR = _xdg_dir("XDG_CACHE_HOME", ".cache") / "waybar-pokemon"
 SPRITE_DIR = CACHE_DIR / "sprites"
 
-# The current party, kept across restarts.
+# The current party, kept across restarts; berries to drop, until the
+# daemon takes them; and the locks.
 STATE_DIR = _xdg_dir("XDG_STATE_HOME", ".local/state") / "waybar-pokemon"
 PARTY_FILE = STATE_DIR / "party.json"
-# Berries to drop, until the daemon picks them up.
+PARTY_LOCK = STATE_DIR / "party.lock"
 BERRY_REQUESTS = STATE_DIR / "berries"
+BERRY_LOCK = STATE_DIR / "berries.lock"
+DAEMON_LOCK = STATE_DIR / "daemon.lock"  # held by the running daemon
 
 # Optional settings for the daemon (see config.py).
 CONFIG_FILE = _xdg_dir("XDG_CONFIG_HOME", ".config") / "waybar-pokemon" / "config.json"
