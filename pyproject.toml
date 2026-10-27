@@ -12,3 +12,9 @@ dependencies = ["pillow"]
 
 [project.scripts]
 waybar-pokemon = "waybar_pokemon.cli:main"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

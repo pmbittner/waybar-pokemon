@@ -119,7 +119,7 @@ Planned: an output that is a small Wayland overlay of its own, without any bar (
 
 ## Development
 
-The project uses [uv](https://docs.astral.sh/uv/): `uv run waybar-pokemon ...` runs it from the source tree, `uv build` builds it. The Nix package (`default.nix`) builds it with uv's build backend and the nixpkgs version of Pillow.
+The project uses [uv](https://docs.astral.sh/uv/): `uv run waybar-pokemon ...` runs it from the source tree, `uv run pytest` runs the tests, `uv build` builds it. The tests need no network and no display; the Nix build runs them too. The Nix package (`default.nix`) builds it with uv's build backend and the nixpkgs version of Pillow.
 
 ## Files
 

@@ -10,11 +10,13 @@ python3Packages.buildPythonApplication {
       ./pyproject.toml
       ./README.md
       ./src
+      ./tests
     ];
   };
 
   build-system = [ python3Packages.uv-build ];
   dependencies = [ python3Packages.pillow ];
+  nativeCheckInputs = [ python3Packages.pytestCheckHook ];
 
   meta = {
     description = "Little Pokémon walking around in a waybar module";
