@@ -10,7 +10,7 @@ import sys
 from dataclasses import dataclass
 from typing import Callable, NoReturn
 
-from . import api, config, daemon, i18n
+from . import __version__, api, config, daemon, i18n
 from .i18n import text
 from .pokemon import names, pokedex
 
@@ -165,6 +165,7 @@ def run_daemon(ctx: Context, args: argparse.Namespace) -> None:
 
 def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="waybar-pokemon", description="Little Pokémon walking around in waybar.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
 
     def command(name: str, function: Callable[[Context, argparse.Namespace], None], help: str, notify: bool = True) -> argparse.ArgumentParser:

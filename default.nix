@@ -1,7 +1,11 @@
 { lib, python3Packages }:
+let
+  # Name, version and description are only kept in pyproject.toml.
+  project = (lib.importTOML ./pyproject.toml).project;
+in
 python3Packages.buildPythonApplication {
-  pname = "waybar-pokemon";
-  version = "0.1.0";
+  pname = project.name;
+  inherit (project) version;
   pyproject = true;
 
   src = lib.fileset.toSource {
@@ -19,7 +23,7 @@ python3Packages.buildPythonApplication {
   nativeCheckInputs = [ python3Packages.pytestCheckHook ];
 
   meta = {
-    description = "Little Pokémon walking around in a waybar module";
+    inherit (project) description;
     mainProgram = "waybar-pokemon";
     platforms = lib.platforms.linux;
   };
