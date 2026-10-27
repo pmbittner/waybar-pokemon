@@ -62,9 +62,14 @@ class Walker:
         self.state, self.velocity = "drop", -speed
 
     @property
-    def grounded(self) -> bool:
-        """On the ground and going about its usual business."""
+    def available(self) -> bool:
+        """On the ground and going about its usual business, so free for
+        something new."""
         return self.state in ("idle", "walk")
+
+    @property
+    def center(self) -> float:
+        return self.x + self.sprite.width / 2
 
     # Update
 

@@ -18,7 +18,6 @@ class Berry:
     y: float = -40.0  # offset above the ground (negative = higher)
     velocity: float = 0.0
     bites: int = 0  # taken so far
-    eater: object | None = None  # the Pokémon that claimed it
 
     @classmethod
     def drop_in(cls, image: Image.Image, stage: Stage) -> "Berry":

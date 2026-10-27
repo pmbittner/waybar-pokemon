@@ -1,4 +1,4 @@
-"""The race for the berries."""
+"""The race for the berries, in the habitat."""
 
 import random
 

@@ -31,7 +31,7 @@ class Pokemon(Walker):
         """Runs to the berry, so that the front of the sprite touches it."""
         self.racing_for = berry
         width = self.sprite.width
-        if self.x + width / 2 < berry.center:
+        if self.center < berry.center:
             target = berry.x - width + 2
         else:
             target = berry.x + berry.image.width - 2
@@ -42,10 +42,9 @@ class Pokemon(Walker):
         self.stop(stage)
 
     def eat(self, berry: Berry) -> None:
-        berry.eater = self
         self.racing_for, self.meal, self.meal_clock = None, berry, 0.0
         self.state = "eat"
-        self.direction = 1 if berry.center > self.x + self.sprite.width / 2 else -1
+        self.direction = 1 if berry.center > self.center else -1
 
     # Update
 
