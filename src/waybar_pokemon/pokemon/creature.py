@@ -1,5 +1,5 @@
-"""A Pokémon on the stage: a walker that sparkles if it is shiny, races
-for berries and eats them."""
+"""A Pokémon on the stage: a walker that races for berries and eats them.
+Its effects (e.g. the sparkle of a shiny one) are set by the habitat."""
 
 from dataclasses import dataclass
 
@@ -8,7 +8,6 @@ from PIL import Image
 from ..engine import Stage, Walker
 from .berry import BITES, Berry
 from .heart import Heart
-from .sparkle import Sparkle
 
 RACE_SPEED = 30.0  # pixels per second, faster than walking
 BITE = 0.6  # seconds per bite: two chews
@@ -19,8 +18,6 @@ JOY = 60.0  # speed of the happy jump after a meal, pixels per second
 
 @dataclass(eq=False)
 class Pokemon(Walker):
-    sparkle: Sparkle | None = None  # only for shiny ones
-    heart: Heart | None = None  # shown after a meal
     racing_for: Berry | None = None
     meal: Berry | None = None
     meal_clock: float = 0.0
@@ -48,28 +45,21 @@ class Pokemon(Walker):
 
     # Update
 
-    def update(self, dt: float, stage: Stage) -> None:
+    def move(self, dt: float, stage: Stage) -> None:
         if self.state == "eat":
-            self._munch(dt, stage)
+            self.meal_clock += dt
+            self._munch()
         else:
-            super().update(dt, stage)
-        if self.sparkle:
-            self.sparkle.update(dt, stage.rng)
-        if self.heart:
-            self.heart.update(dt)
-            if self.heart.done:
-                self.heart = None
+            super().move(dt, stage)
 
-    def _munch(self, dt: float, stage: Stage) -> None:
+    def _munch(self) -> None:
         """A bite at the start of every BITE seconds; then a happy jump."""
         assert self.meal is not None
-        self.clock += dt
-        self.meal_clock += dt
         while self.meal.bites < min(BITES, int(self.meal_clock / BITE) + 1):
             self.meal.bite()
         if self.meal_clock >= BITES * BITE:
             self.meal = None
-            self.heart = Heart()
+            self.effects.append(Heart())
             self.jump(JOY)
 
     @property
@@ -85,11 +75,3 @@ class Pokemon(Walker):
         if self.chewing and image.height > 2 * SQUASH:
             image = image.resize((image.width, image.height - SQUASH), Image.Resampling.NEAREST)
         return image
-
-    def draw(self, frame: Image.Image, stage: Stage) -> None:
-        super().draw(frame, stage)
-        box = self.box(stage)
-        if self.sparkle and self.state != "drop":
-            self.sparkle.draw(frame, box)
-        if self.heart:
-            self.heart.draw(frame, box, self.direction)

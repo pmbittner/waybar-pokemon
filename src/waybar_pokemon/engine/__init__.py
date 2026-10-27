@@ -5,10 +5,12 @@ input, updates the entities, lets them draw a frame and hands the frame to
 an output. Updating changes state; drawing only reads it.
 """
 
+from .draw import blend
+from .effect import Effect
 from .loop import run
 from .output import Output, PngFile
 from .scene import Entity, Scene, Stage
 from .sprite import Sprite, load_sprite
 from .walker import Walker
 
-__all__ = ["Entity", "Output", "PngFile", "Scene", "Sprite", "Stage", "Walker", "load_sprite", "run"]
+__all__ = ["Effect", "Entity", "Output", "PngFile", "Scene", "Sprite", "Stage", "Walker", "blend", "load_sprite", "run"]

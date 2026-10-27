@@ -2,11 +2,12 @@
 
 from dataclasses import dataclass
 
-from PIL import Image, ImageDraw
+from PIL import Image
+
+from ..engine import Stage, Walker, blend
 
 DURATION = 1.2  # seconds
 RISE = 4  # pixels
-COLOR = (255, 110, 150)
 SHAPE = (
     ".XX.XX.",
     "XXXXXXX",
@@ -15,6 +16,11 @@ SHAPE = (
     "..XXX..",
     "...X...",
 )
+HEART = Image.new("RGBA", (len(SHAPE[0]), len(SHAPE)))
+for _y, _row in enumerate(SHAPE):
+    for _x, _cell in enumerate(_row):
+        if _cell == "X":
+            HEART.putpixel((_x, _y), (255, 110, 150, 255))
 
 
 @dataclass
@@ -25,20 +31,20 @@ class Heart:
     def done(self) -> bool:
         return self.clock >= DURATION
 
-    def update(self, dt: float) -> None:
+    def update(self, dt: float, stage: Stage) -> None:
         self.clock += dt
 
-    def draw(self, frame: Image.Image, box: tuple[int, int, int, int], direction: int) -> None:
-        """Draws the heart above the front of the sprite drawn at box."""
+    def draw(self, frame: Image.Image, walker: Walker, stage: Stage) -> None:
+        """Above the front of the sprite, fading out at the end."""
         if self.done:
             return
-        left, top, width, _ = box
+        left, top, width, _ = walker.box(stage)
         progress = self.clock / DURATION
-        x = left + (width - len(SHAPE[0]) if direction > 0 else 0)
-        y = max(0, top - len(SHAPE) + 2 - round(RISE * progress))
-        alpha = 255 if progress < 0.6 else round(255 * (1 - progress) / 0.4)
-        draw = ImageDraw.Draw(frame)
-        for dy, row in enumerate(SHAPE):
-            for dx, cell in enumerate(row):
-                if cell == "X":
-                    draw.point((x + dx, y + dy), fill=(*COLOR, alpha))
+        x = left + (width - HEART.width if walker.direction > 0 else 0)
+        y = max(0, top - HEART.height + 2 - round(RISE * progress))
+        image = HEART
+        if progress > 0.6:
+            opacity = (1 - progress) / 0.4
+            image = HEART.copy()
+            image.putalpha(HEART.getchannel("A").point(lambda a: round(a * opacity)))
+        blend(frame, image, x, y)

@@ -8,6 +8,7 @@ from waybar_pokemon import engine
 from waybar_pokemon.pokemon import party
 from waybar_pokemon.pokemon.berry import Berry
 from waybar_pokemon.pokemon.habitat import Habitat
+from waybar_pokemon.pokemon.heart import Heart
 
 
 def habitat_with(*species_ids: int) -> Habitat:
@@ -31,6 +32,10 @@ def lay_berry(habitat: Habitat, x: float) -> Berry:
     return berry
 
 
+def happy(pokemon) -> bool:
+    return any(isinstance(effect, Heart) for effect in pokemon.effects)
+
+
 def run(habitat: Habitat, seconds: float, until=lambda: False) -> None:
     for _ in range(round(seconds * 10)):
         habitat.sync()
@@ -51,9 +56,9 @@ def test_the_closest_one_in_sight_wins(sprites):
     assert far.racing_for is None and far.state != "eat"
     assert away.racing_for is None
 
-    run(habitat, 5, until=lambda: near.heart is not None)
+    run(habitat, 5, until=lambda: happy(near))
     assert habitat.berries == []  # gone with the last bite
-    assert near.heart is not None and near.state != "eat"  # happy
+    assert happy(near) and near.state != "eat"
 
 
 def test_a_berry_nobody_sees_stays():

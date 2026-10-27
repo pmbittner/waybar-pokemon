@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
-from ..engine import Stage
+from ..engine import Stage, blend
 from ..engine.walker import GRAVITY
 
 BITES = 3
@@ -54,4 +54,4 @@ class Berry:
             image = image.resize(size, Image.Resampling.NEAREST)
         x = round(self.center - image.width / 2)
         top = stage.height - image.height + round(self.y)
-        frame.paste(image, (x, top), image)
+        blend(frame, image, x, top)

@@ -2,11 +2,13 @@
 can be sent to a place."""
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from PIL import Image
 
+from .draw import blend
+from .effect import Effect
 from .scene import Stage
 from .sprite import Sprite
 
@@ -26,6 +28,7 @@ class Walker:
     phase: float = 0.0  # step cycle while walking
     clock: float = 0.0  # seconds since appearing, for the jiggle while standing
     target: float = 0.0  # where to go in state "goto" (left edge)
+    effects: list[Effect] = field(default_factory=list)  # drawn on top
 
     @classmethod
     def drop_in(cls, sprite: Sprite, stage: Stage, **fields: Any) -> "Walker":
@@ -75,6 +78,13 @@ class Walker:
 
     def update(self, dt: float, stage: Stage) -> None:
         self.clock += dt
+        self.move(dt, stage)
+        for effect in self.effects:
+            effect.update(dt, stage)
+        self.effects = [e for e in self.effects if not e.done]
+
+    def move(self, dt: float, stage: Stage) -> None:
+        """The state machine; subclasses can add states."""
         if self.state == "goto":
             distance = self.target - self.x
             step = self.speed * dt
@@ -142,4 +152,6 @@ class Walker:
 
     def draw(self, frame: Image.Image, stage: Stage) -> None:
         left, top, _, _ = self.box(stage)
-        frame.paste(self.image, (left, top), self.image)
+        blend(frame, self.image, left, top)
+        for effect in self.effects:
+            effect.draw(frame, self, stage)

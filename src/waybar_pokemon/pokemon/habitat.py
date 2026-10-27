@@ -62,8 +62,8 @@ class Habitat(Scene):
         except OSError as error:  # e.g. no network for a missing sprite
             print(f"waybar-pokemon: cannot load Pokémon #{member.species_id}: {error}", file=sys.stderr)
             return
-        sparkle = Sparkle.start(self.stage.rng) if member.shiny else None
-        self.pokemon[member.uid] = Pokemon.drop_in(sprite, self.stage, sparkle=sparkle)
+        effects = [Sparkle.start(self.stage.rng)] if member.shiny else []
+        self.pokemon[member.uid] = Pokemon.drop_in(sprite, self.stage, effects=effects)
 
     def drop_berry(self, name: str) -> None:
         if len(self.berries) >= MAX_BERRIES:
