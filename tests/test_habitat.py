@@ -11,9 +11,8 @@ from waybar_pokemon.pokemon.habitat import Habitat
 
 
 def habitat_with(*species_ids: int) -> Habitat:
-    with party.editing() as members:
-        for species_id in species_ids:
-            members.append(party.Member(party.next_uid(members), species_id, False))
+    for species_id in species_ids:
+        party.add(species_id, False)
     habitat = Habitat(engine.Stage(240, 30, random.Random(3)), wild_berries_per_hour=0)
     habitat.sync()
     return habitat
@@ -71,8 +70,7 @@ def test_a_despawned_eater_leaves_the_berry_to_the_others(sprites):
     run(habitat, 3, until=lambda: eater.state == "eat")
     assert eater.state == "eat"
 
-    with party.editing() as members:
-        members[:] = [m for m in members if m.uid != 1]
+    party.remove(lambda members: [m for m in members if m.uid == 1])
     place(habitat, 2, 60)  # comes into sight
     run(habitat, 10, until=lambda: other.state == "eat")
     assert other.state == "eat" and berry in habitat.berries

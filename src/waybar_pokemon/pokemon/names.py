@@ -21,11 +21,12 @@ K = TypeVar("K", bound=Hashable)
 
 
 class NotFound(LookupError):
-    """No match or more than one; matches holds up to five names of them."""
+    """No match or more than one; matches holds up to five names of them,
+    kind says what was looked for ("pokemon" or "berry")."""
 
-    def __init__(self, query: str, count: int, matches: list[str]) -> None:
-        super().__init__(f"'{query}' matches {count}" + (f": {', '.join(matches)}" if matches else ""))
-        self.query, self.count, self.matches = query, count, matches
+    def __init__(self, query: str, count: int, matches: list[str], kind: str = "pokemon") -> None:
+        super().__init__(f"'{query}' matches {count} {kind}" + (f": {', '.join(matches)}" if matches else ""))
+        self.query, self.count, self.matches, self.kind = query, count, matches, kind
 
 
 @cache
@@ -63,14 +64,21 @@ def normalize(text: str) -> str:
     return "".join(c for c in text if c.isalnum() or c in "♀♂")
 
 
-def match(query: str, candidates: Iterable[tuple[K, list[str]]], show: Callable[[K], str]) -> K:
-    """The one candidate with a name that is the query, or else the one
-    whose name begins with it. Candidates are (key, names) pairs."""
+def match_all(query: str, candidates: Iterable[tuple[K, list[str]]]) -> list[K]:
+    """The candidates with a name that is the query, or else the ones whose
+    name begins with it. Candidates are (key, names) pairs."""
     key = normalize(query)
-    candidates = [(k, [normalize(n) for n in names]) for k, names in candidates]
-    matches = [k for k, names in candidates if key in names]
+    normalized = [(k, [normalize(n) for n in names]) for k, names in candidates]
+    matches = [k for k, names in normalized if key in names]
     if not matches and key:
-        matches = [k for k, names in candidates if any(n.startswith(key) for n in names)]
+        matches = [k for k, names in normalized if any(n.startswith(key) for n in names)]
+    return matches
+
+
+def match(query: str, candidates: Iterable[tuple[K, list[str]]], show: Callable[[K], str], kind: str = "pokemon") -> K:
+    """The one candidate that match_all finds; NotFound otherwise. show
+    names a candidate in the error."""
+    matches = match_all(query, candidates)
     if len(matches) != 1:
-        raise NotFound(query, len(matches), [show(k) for k in matches[:5]])
+        raise NotFound(query, len(matches), [show(k) for k in matches[:5]], kind)
     return matches[0]

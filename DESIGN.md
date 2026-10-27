@@ -103,6 +103,12 @@ To decide with a prototype: which edge, which layer, and whether it should react
 - Not translated: the command line help and the daemon's log, which are for developers and bug reports.
 - The party file stores species numbers only, so changing the language renames the Pokémon already in the habitat. Lookups accept the chosen language and English, ignore case, accents and punctuation, and a unique beginning is enough.
 
+## Library interface and settings
+
+**Decision:** the commands are a library interface (`api.py`) that takes an explicit, validated settings type (`Config`) and returns data or raises exceptions. The command line (`cli.py`) is a thin layer on top: it parses arguments, calls the interface and turns results and errors into texts and notifications in the interface language.
+
+**Why:** the logic does not depend on the argument parser, so the program can be used as a library or, later, be driven over a network or from a bar's own scripting. A `Config` is valid as soon as it exists, whether it was read from the file or built in code; invalid values (an unknown language, a frame rate of 0) fail right there with a clear message.
+
 ## Commands and state
 
 **Decision:** the party is a JSON file. Commands change it under a file lock; the daemon checks its modification time every frame and syncs. The party survives restarts. Berry requests work the same way, with a file of their own that the daemon empties.

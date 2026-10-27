@@ -37,7 +37,7 @@ def find(query: str, language: str) -> str:
     beginning of it, e.g. "sit" or "Oran Berry". Raises names.NotFound
     otherwise."""
     candidates = ((n, [display_name(n, language), display_name(n, "en"), n]) for n in NAMES)
-    return names.match(query, candidates, lambda n: display_name(n, language))
+    return names.match(query, candidates, lambda n: display_name(n, language), kind="berry")
 
 
 def random_name(rng: random.Random | None = None) -> str:

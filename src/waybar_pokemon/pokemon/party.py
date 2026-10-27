@@ -1,19 +1,23 @@
 """The Pokémon currently out in the habitat, stored in a JSON file.
 
-The command line adds and removes members; the daemon watches the file and
-shows its members. A lock file keeps concurrent commands from losing
-changes.
+The commands add and remove members; the daemon watches the file and shows
+its members. A lock file keeps concurrent commands from losing changes.
 """
 
 import fcntl
 import json
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, fields
-from typing import Iterator
+from typing import Callable, Iterator
 
 from .. import paths
 
 MAX_SIZE = 10  # more would not fit into a small habitat
+
+
+class Full(Exception):
+    def __init__(self) -> None:
+        super().__init__(f"The party is full ({MAX_SIZE} Pokémon)")
 
 
 @dataclass(frozen=True)
@@ -49,5 +53,21 @@ def editing() -> Iterator[list[Member]]:
         _save(members)
 
 
-def next_uid(members: list[Member]) -> int:
-    return max((m.uid for m in members), default=0) + 1
+def add(species_id: int, shiny: bool) -> Member:
+    """Adds a new member; Full if there is no room."""
+    with editing() as members:
+        if len(members) >= MAX_SIZE:
+            raise Full()
+        member = Member(max((m.uid for m in members), default=0) + 1, species_id, shiny)
+        members.append(member)
+    return member
+
+
+def remove(choose: Callable[[list[Member]], list[Member]]) -> list[Member]:
+    """Removes the members that choose picks from the party (in one locked
+    step, so the choice is made from the current party). Errors from
+    choose leave the party unchanged."""
+    with editing() as members:
+        leaving = choose(list(members))
+        members[:] = [m for m in members if m not in leaving]
+    return leaving
