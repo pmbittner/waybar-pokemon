@@ -13,16 +13,7 @@ Prototype: it is developed inside a dotfiles repository and meant to become its 
 - Standing Pokémon jiggle like the party icons in the games; walking ones hop with every step.
 - **Berries:** `waybar-pokemon berry` drops one (scrolling up over the habitat in the waybar config below), and now and then a wild one falls from the sky. Every Pokémon on the ground within sight of it races for it; the first one there munches it in three bites, and a little heart shows how much it liked it. The others go back to what they were doing. A berry nobody sees stays until someone comes along. The berry sprites are the games' bag icons from PokéSprite.
 
-Code (`src/waybar_pokemon/`), see [DESIGN.md](DESIGN.md) for the reasoning:
-
-| Module | Purpose |
-|---|---|
-| `engine/` | independent of the Pokémon: the main loop (input, update, draw, present), stage, scene and entities, sprites, the walker (dropping in, standing, walking), and outputs (the PNG file) |
-| `pokemon/` | the Pokémon: `pokedex.py` (species, generations, sprite download, shiny chance), `names.py` (names in all languages, lookup of typed names), `party.py` (the party file), `habitat.py` (the scene: follows the party, drops berries, runs the race for them), `creature.py` (a Pokémon on the stage: racing, munching), `berries.py` (berry names, sprites and drop requests), `berry.py` (a berry on the stage), `sparkle.py` and `heart.py` (effects) |
-| `daemon.py` | puts the habitat into the engine's loop with the PNG output |
-| `cli.py` | command line |
-| `i18n.py` | texts of the user interface per language |
-| `config.py`, `paths.py` | settings and file locations |
+The structure of the code and the reasons behind it are in [DESIGN.md](DESIGN.md). Besides the command line, everything can be used as a Python library (`waybar_pokemon.api`).
 
 ## Usage
 

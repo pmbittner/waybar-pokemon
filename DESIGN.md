@@ -33,16 +33,29 @@ Before rewriting anything, use the cheaper wins: stop rendering while nothing mo
 3. **Draw:** every entity paints itself onto a fresh transparent frame, `draw(frame, stage)`, in the order it was added. Drawing only reads state.
 4. **Present:** an output shows the frame (`output.py`).
 
-The engine also provides the stage (size and random generator), sprites facing left and right, and the `Walker`: an entity that drops in, stands around (with the jiggle), walks along the ground, can be sent to a place and can jump. Interactions between entities belong to the scene: it updates its entities, then lets them react to each other.
+The engine also provides:
+
+- `scene.py`: the stage (size and random generator), the entity interface and the scene. Interactions between entities belong to the scene: it updates its entities, then lets them react to each other.
+- `walker.py`: an entity that drops in, stands around (with the jiggle), walks along the ground, can be sent to a place and can jump. Its states are named constants; subclasses add their own.
+- `effect.py`: little extras that follow a walker and are drawn on top of it.
+- `sprite.py`, `draw.py`, `physics.py`: sprites facing left and right, blending images onto the frame, falling.
 
 `pokemon/` is the content:
 
-- `pokedex.py`: species, generations, sprite download, shiny chance
+- `pokedex.py`, `berries.py`: species and berries, lookup by name, random choice, the shiny chance
+- `names.py`: names in all languages of the games, and matching what the user typed
+- `data.py`, `sprites.py`, `web.py`: PokeAPI's tables and the sprites, downloaded and cached
 - `party.py`: the party file
-- `habitat.py`: the scene; it follows the party file, drops berries and runs the race for them
-- `creature.py`: a Pokémon on the stage, a walker that races for berries and munches them
-- `berries.py`, `berry.py`: berry names, sprites and drop requests; a berry on the stage
-- `sparkle.py`, `heart.py`: effects drawn on top of a sprite (the sign of a shiny one, the joy after a meal)
+- `habitat.py`: the scene; it follows the party file and the berry requests, and drops wild berries
+- `feeding.py`: the race for the berries
+- `creature.py`, `berry.py`: a Pokémon on the stage (a walker that races and munches) and a berry
+- `sparkle.py`, `heart.py`: effects (the sign of a shiny one, the joy after a meal)
+
+Around both:
+
+- `api.py`: the library interface, `cli.py`: the command line on top of it, `daemon.py`: the habitat in the engine's loop with the PNG output
+- `config.py`, `i18n.py`, `paths.py`, `files.py`: settings, interface texts, file locations, locks and atomic writes
+- `tests/`: pytest, without network or display
 
 **Why:** keeping update and draw apart keeps drawing simple and makes new kinds of entities, effects or small games possible without touching the loop or the outputs. The abstraction costs one function call per entity per frame.
 
