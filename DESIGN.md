@@ -92,6 +92,17 @@ To decide with a prototype: which edge, which layer, and whether it should react
 - `cache_all_sprites` downloads everything in the background (about 2000 small files), so spawning works offline afterwards.
 - Sprites are only ever shrunk to fit the habitat, never enlarged, so sizes keep their proportions.
 
+## Languages
+
+**Decision:** two settings. `names_language` picks the names of Pokémon and berries, `ui_language` everything else the user reads: notifications, menus and the commands' messages.
+
+**Why separate:** many players know the Pokémon by the names of their games but prefer the system's language for the rest, or the other way round.
+
+- Names come from PokeAPI's tables, which have all twelve languages of the games, and are downloaded and cached like the sprites. Missing names fall back to English. Berry names follow the names setting, as they are names from the games too.
+- The interface texts are a dictionary per language in `i18n.py`, with English as the fallback. That is simpler than gettext, needs no build step, and is enough for a few dozen texts. English and German for now.
+- Not translated: the command line help and the daemon's log, which are for developers and bug reports.
+- The party file stores species numbers only, so changing the language renames the Pokémon already in the habitat. Lookups accept the chosen language and English, ignore case, accents and punctuation, and a unique beginning is enough.
+
 ## Commands and state
 
 **Decision:** the party is a JSON file. Commands change it under a file lock; the daemon checks its modification time every frame and syncs. The party survives restarts. Berry requests work the same way, with a file of their own that the daemon empties.

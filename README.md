@@ -9,7 +9,7 @@ Prototype: it is developed inside a dotfiles repository and meant to become its 
 - `waybar-pokemon daemon` simulates the Pokémon (dropping in, standing, walking, turning at the edges) and renders the habitat as a PNG strip several times per second. It only rewrites the file when the picture changed.
 - waybar's **image module** shows that file and reads it again in a short interval. Other bars can, too (see [Integrations](#integrations)).
 - The commands `spawn` and `despawn` change the party, a JSON file the daemon watches. The party is kept across restarts.
-- Names come from the [PokeAPI](https://github.com/PokeAPI) species table. Sprites are the games' small box icons (normal and shiny) from [PokéSprite](https://github.com/msikma/pokesprite): the classic icons of generation 7 where there is one, else those of generation 8; for the newest Pokémon, which have no icon there, PokeAPI's front sprites are used. Everything is downloaded from GitHub on first use and cached. Sprites are never enlarged and only shrunk to fit the height of the habitat.
+- Names come from the [PokeAPI](https://github.com/PokeAPI) tables, in any of the games' languages (see [Languages](#languages)). Sprites are the games' small box icons (normal and shiny) from [PokéSprite](https://github.com/msikma/pokesprite): the classic icons of generation 7 where there is one, else those of generation 8; for the newest Pokémon, which have no icon there, PokeAPI's front sprites are used. Everything is downloaded from GitHub on first use and cached. Sprites are never enlarged and only shrunk to fit the height of the habitat.
 - Standing Pokémon jiggle like the party icons in the games; walking ones hop with every step.
 - **Berries:** `waybar-pokemon berry` drops one (scrolling up over the habitat in the waybar config below), and now and then a wild one falls from the sky. Every Pokémon on the ground within sight of it races for it; the first one there munches it in three bites, and a little heart shows how much it liked it. The others go back to what they were doing. A berry nobody sees stays until someone comes along. The berry sprites are the games' bag icons from PokéSprite.
 
@@ -18,9 +18,10 @@ Code (`src/waybar_pokemon/`), see [DESIGN.md](DESIGN.md) for the reasoning:
 | Module | Purpose |
 |---|---|
 | `engine/` | independent of the Pokémon: the main loop (input, update, draw, present), stage, scene and entities, sprites, the walker (dropping in, standing, walking), and outputs (the PNG file) |
-| `pokemon/` | the Pokémon: `pokedex.py` (species, generations, sprite download, shiny chance), `party.py` (the party file), `habitat.py` (the scene: follows the party, drops berries, runs the race for them), `creature.py` (a Pokémon on the stage: racing, munching), `berries.py` (berry names, sprites and drop requests), `berry.py` (a berry on the stage), `sparkle.py` and `heart.py` (effects) |
+| `pokemon/` | the Pokémon: `pokedex.py` (species, generations, sprite download, shiny chance), `names.py` (names in all languages, lookup of typed names), `party.py` (the party file), `habitat.py` (the scene: follows the party, drops berries, runs the race for them), `creature.py` (a Pokémon on the stage: racing, munching), `berries.py` (berry names, sprites and drop requests), `berry.py` (a berry on the stage), `sparkle.py` and `heart.py` (effects) |
 | `daemon.py` | puts the habitat into the engine's loop with the PNG output |
 | `cli.py` | command line |
+| `i18n.py` | texts of the user interface per language |
 | `config.py`, `paths.py` | settings and file locations |
 
 ## Usage
@@ -52,7 +53,9 @@ waybar-pokemon despawn-menu
   "frame": "/dev/shm/waybar-pokemon-USER/frame.png",
   "cache_all_sprites": false,
   "random_generations": [],
-  "wild_berries_per_hour": 1
+  "wild_berries_per_hour": 1,
+  "names_language": "en",
+  "ui_language": "en"
 }
 ```
 
@@ -63,7 +66,18 @@ waybar-pokemon despawn-menu
 | `frame` | where the frame is written; the default is in `/dev/shm` |
 | `cache_all_sprites` | `true`: the daemon downloads the sprites of all Pokémon (normal and shiny) in the background, so any Pokémon can be spawned without internet. `false`: a sprite is downloaded when its Pokémon is spawned for the first time. `waybar-pokemon download` does the same once, in the foreground. |
 | `random_generations` | generations that random spawns pick from, e.g. `[1, 2, 3, 4]`; empty means all. `--generations` overrides it for one command. Spawning a Pokémon by name is not restricted. |
+| `names_language` | language of the Pokémon and berry names, as in the games (see [Languages](#languages)) |
+| `ui_language` | language of everything else: notifications, menus and the commands' messages |
 | `wild_berries_per_hour` | how often a wild berry falls from the sky while there are Pokémon, on average; `0` turns it off |
+
+## Languages
+
+Names and the rest of the interface have separate settings, e.g. German Pokémon names with English notifications ("A wild Pantimos appeared!"):
+
+- `names_language`: the names of Pokémon and berries in the games. `en`, `de`, `fr`, `it`, `es`, `es-419` (Latin American Spanish), `ja` (kanji), `ja-hrkt` (kana), `ja-roma` (romaji), `ko`, `zh-hans`, `zh-hant`. Names missing in a language fall back to English.
+- `ui_language`: notifications, menus and the commands' messages: `en`, `de`. The help of the command line and the daemon's log stay English. To add a language, translate the texts in `src/waybar_pokemon/i18n.py`.
+
+Commands accept names in the chosen language and in English, without caring about case, accents, spaces or punctuation: `spawn pantimos`, `spawn "mr mime"` and `spawn flabebe` all work. A unique beginning is enough.
 
 ## Integrations
 
@@ -109,7 +123,7 @@ The project uses [uv](https://docs.astral.sh/uv/): `uv run waybar-pokemon ...` r
 
 ## Files
 
-- `~/.cache/waybar-pokemon/`: species table and sprites
+- `~/.cache/waybar-pokemon/`: species and name tables, sprites
 - `~/.local/state/waybar-pokemon/party.json`: the party
 - `~/.local/state/waybar-pokemon/berries`: berries to drop, until the daemon takes them
 - `~/.local/state/waybar-pokemon/daemon.lock`: held by the running daemon; a second one exits right away
@@ -117,4 +131,4 @@ The project uses [uv](https://docs.astral.sh/uv/): `uv run waybar-pokemon ...` r
 
 ## Credits
 
-Names: [PokeAPI](https://pokeapi.co) ([data](https://github.com/PokeAPI/pokeapi)). Sprites: [PokéSprite](https://github.com/msikma/pokesprite) box and bag icons, and [PokeAPI sprites](https://github.com/PokeAPI/sprites) for Pokémon without an icon there. They are downloaded at runtime and not part of this project. Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc. and GAME FREAK inc.; this project is not affiliated with them.
+Names in all languages: [PokeAPI](https://pokeapi.co) ([data](https://github.com/PokeAPI/pokeapi)). Sprites: [PokéSprite](https://github.com/msikma/pokesprite) box and bag icons, and [PokeAPI sprites](https://github.com/PokeAPI/sprites) for Pokémon without an icon there. They are downloaded at runtime and not part of this project. Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc. and GAME FREAK inc.; this project is not affiliated with them.

@@ -1,0 +1,99 @@
+"""Names of Pokémon and berries in the languages of the games, and looking
+them up by what the user typed.
+
+The names come from PokeAPI's tables, downloaded on first use and cached.
+A name missing in a language falls back to English.
+"""
+
+import csv
+import unicodedata
+from functools import cache
+from typing import Callable, Hashable, Iterable, Iterator, TypeVar
+
+from .. import paths
+from .web import download
+
+TABLE_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/{table}.csv"
+TABLES = ("pokemon_species_names", "items", "item_names")
+
+# The languages with names, by PokeAPI's identifiers and ids.
+LANGUAGES = {
+    "en": 9, "de": 6, "fr": 5, "it": 8, "es": 7, "es-419": 14,
+    "ja": 11, "ja-hrkt": 1, "ja-roma": 2, "ko": 3, "zh-hans": 12, "zh-hant": 4,
+}
+
+K = TypeVar("K", bound=Hashable)
+
+
+class NotFound(LookupError):
+    """No match or more than one; matches holds up to five names of them."""
+
+    def __init__(self, query: str, count: int, matches: list[str]) -> None:
+        super().__init__(f"'{query}' matches {count}" + (f": {', '.join(matches)}" if matches else ""))
+        self.query, self.count, self.matches = query, count, matches
+
+
+def download_all() -> None:
+    """Downloads the tables that are not cached yet."""
+    for table in TABLES:
+        _path(table)
+
+
+def _path(table: str):
+    path = paths.CACHE_DIR / f"{table}.csv"
+    if not path.exists():
+        download(TABLE_URL.format(table=table), path)
+    return path
+
+
+def _rows(table: str) -> Iterator[dict[str, str]]:
+    with _path(table).open(newline="", encoding="utf-8") as file:
+        yield from csv.DictReader(file)
+
+
+@cache
+def _species_names(language: str) -> dict[int, str]:
+    language_id = str(LANGUAGES[language])
+    return {int(r["pokemon_species_id"]): r["name"] for r in _rows("pokemon_species_names") if r["local_language_id"] == language_id}
+
+
+@cache
+def _item_names(language: str) -> dict[str, str]:
+    """By the item's identifier, e.g. "oran-berry"."""
+    identifiers = {r["id"]: r["identifier"] for r in _rows("items")}
+    language_id = str(LANGUAGES[language])
+    return {identifiers[r["item_id"]]: r["name"] for r in _rows("item_names") if r["local_language_id"] == language_id and r["item_id"] in identifiers}
+
+
+def species(species_id: int, language: str, fallback: str) -> str:
+    return _species_names(language).get(species_id) or _species_names("en").get(species_id) or fallback
+
+
+def item(identifier: str, language: str, fallback: str) -> str:
+    return _item_names(language).get(identifier) or _item_names("en").get(identifier) or fallback
+
+
+def normalize(text: str) -> str:
+    """For comparing names: case, accents, spaces and punctuation do not
+    matter ("mr mime" finds "Mr. Mime", "flabebe" finds "Flabébé")."""
+    characters: list[str] = []
+    for character in unicodedata.normalize("NFKD", text.casefold()):
+        # Drop accents of Latin letters only; e.g. Japanese marks stay.
+        if unicodedata.combining(character) and characters and characters[-1].isascii():
+            continue
+        characters.append(character)
+    text = unicodedata.normalize("NFC", "".join(characters))
+    return "".join(c for c in text if c.isalnum() or c in "♀♂")
+
+
+def match(query: str, candidates: Iterable[tuple[K, list[str]]], show: Callable[[K], str]) -> K:
+    """The one candidate with a name that is the query, or else the one
+    whose name begins with it. Candidates are (key, names) pairs."""
+    key = normalize(query)
+    candidates = [(k, [normalize(n) for n in names]) for k, names in candidates]
+    matches = [k for k, names in candidates if key in names]
+    if not matches and key:
+        matches = [k for k, names in candidates if any(n.startswith(key) for n in names)]
+    if len(matches) != 1:
+        raise NotFound(query, len(matches), [show(k) for k in matches[:5]])
+    return matches[0]

@@ -6,12 +6,11 @@ import shutil
 import subprocess
 import sys
 
-from . import config, daemon
-from .pokemon import berries, party, pokedex
+from . import config, daemon, i18n
+from .i18n import text
+from .pokemon import berries, names, party, pokedex
 
 DEFAULT_MENU = "rofi -dmenu -i -p Pokémon"
-RANDOM = "Random"
-EVERYONE = "Everyone"
 
 
 def notify(enabled: bool, message: str) -> None:
@@ -25,37 +24,55 @@ def fail(args: argparse.Namespace, message: str) -> None:
     sys.exit(1)
 
 
+def explain(error: Exception, no_match: str = "no_pokemon", many: str = "many_pokemon") -> str:
+    """The message for an error, in the language of the user interface."""
+    if isinstance(error, names.NotFound):
+        if error.count == 0:
+            return text(no_match, query=error.query)
+        return text(many, query=error.query, count=error.count, matches=", ".join(error.matches))
+    if isinstance(error, pokedex.NoCandidates):
+        return text("no_generation", generations=",".join(map(str, error.generations)))
+    if isinstance(error, OSError):
+        return text("offline", error=error)
+    return str(error)
+
+
+def label(member: party.Member, settings: config.Config) -> str:
+    name = pokedex.get(member.species_id).name(settings.names_language)
+    return f"{name}{' ✨' if member.shiny else ''}"
+
+
 def random_generations(args: argparse.Namespace) -> list[int]:
     """Generations for random spawns: --generations, else the config file."""
     if getattr(args, "generations", None):
         return config.parse_generations(args.generations)
-    return config.load().random_generations
+    return args.settings.random_generations
 
 
 def spawn(args: argparse.Namespace, query: str | None) -> None:
+    language = args.settings.names_language
     try:
-        species = pokedex.find(query) if query else pokedex.random_species(random_generations(args))
+        species = pokedex.find(query, language) if query else pokedex.random_species(random_generations(args))
         shiny = args.shiny or pokedex.roll_shiny()
         pokedex.sprite_path(species.id, shiny)  # download now, so errors show here
     except (LookupError, OSError, ValueError) as error:
-        fail(args, f"{error} (no internet? See cache_all_sprites in the README.)" if isinstance(error, OSError) else str(error))
+        fail(args, explain(error))
     with party.editing() as members:
         if len(members) >= party.MAX_SIZE:
-            fail(args, f"The habitat is full ({party.MAX_SIZE} Pokémon). Despawn one first.")
-        member = party.Member(party.next_uid(members), species.id, species.display_name, shiny)
+            fail(args, text("full", max=party.MAX_SIZE))
+        member = party.Member(party.next_uid(members), species.id, shiny)
         members.append(member)
-    if shiny:
-        notify(args.notify, f"✨ A shiny {member.name} appeared! ✨")
-    else:
-        notify(args.notify, f"A wild {member.name} appeared!")
-    print(member.label)
+    name = species.name(language)
+    notify(args.notify, text("wild_shiny" if shiny else "wild", name=name))
+    print(label(member, args.settings))
 
 
 def despawn(args: argparse.Namespace, query: str | None, everyone: bool = False) -> None:
     """Removes everyone, the member with the given uid or name, or the newest one."""
+    language = args.settings.names_language
     with party.editing() as members:
         if not members:
-            fail(args, "No Pokémon to despawn.")
+            fail(args, text("nobody"))
         if everyone:
             leaving = list(members)
         elif query is None:
@@ -63,40 +80,48 @@ def despawn(args: argparse.Namespace, query: str | None, everyone: bool = False)
         elif query.isdigit() and any(m.uid == int(query) for m in members):
             leaving = [m for m in members if m.uid == int(query)]
         else:
-            matching = [m for m in members if m.name.lower().startswith(query.lower())]
+            key = names.normalize(query)
+
+            def matches(member: party.Member) -> bool:
+                species = pokedex.get(member.species_id)
+                return any(names.normalize(n).startswith(key) for n in (species.name(language), species.name("en"), species.identifier))
+
+            matching = [m for m in members if matches(m)]
             if not matching:
-                fail(args, f"No '{query}' in the habitat.")
+                fail(args, text("not_in_habitat", query=query))
             leaving = [matching[-1]]
         for member in leaving:
             members.remove(member)
-    names = ", ".join(m.name for m in leaving)
-    notify(args.notify, f"{names} returned to {'their' if len(leaving) > 1 else 'its'} Poké Ball.")
+    leaving_names = ", ".join(pokedex.get(m.species_id).name(language) for m in leaving)
+    notify(args.notify, text("returned_many" if len(leaving) > 1 else "returned_one", names=leaving_names))
 
 
 def berry(args: argparse.Namespace, query: str | None) -> None:
     """Asks the daemon to drop a berry (a random one without a name)."""
+    language = args.settings.names_language
     try:
-        name = berries.find(query) if query else berries.random_name()
+        name = berries.find(query, language) if query else berries.random_name()
         berries.sprite_path(name)  # download now, so errors show here
+        display_name = berries.display_name(name, language)
     except (LookupError, OSError) as error:
-        fail(args, f"{error} (no internet? See cache_all_sprites in the README.)" if isinstance(error, OSError) else str(error))
+        fail(args, explain(error, "no_berry", "many_berries"))
     berries.request(name)
-    notify(args.notify, f"A {berries.display_name(name)} fell from the sky!")
-    print(berries.display_name(name))
+    notify(args.notify, text("berry_fell", berry=display_name))
+    print(display_name)
 
 
 def download() -> None:
     def progress(done: int, total: int) -> None:
-        print(f"\r{done}/{total} sprites", end="", file=sys.stderr, flush=True)
+        print("\r" + text("progress", done=done, total=total), end="", file=sys.stderr, flush=True)
 
     try:
         failed = pokedex.download_all(progress)
     except OSError as error:
-        print(f"\nwaybar-pokemon: {error}", file=sys.stderr)
+        print(f"\nwaybar-pokemon: {explain(error)}", file=sys.stderr)
         sys.exit(1)
     print(file=sys.stderr)
     if failed:
-        print(f"{failed} sprites could not be downloaded.", file=sys.stderr)
+        print(text("failed", failed=failed), file=sys.stderr)
         sys.exit(1)
 
 
@@ -109,15 +134,12 @@ def choose(menu_command: str, options: list[str]) -> str | None:
 
 def spawn_menu(args: argparse.Namespace) -> None:
     try:
-        names = [s.display_name for s in pokedex.all_species()]
-    except OSError as error:
-        fail(args, str(error))
-    try:
+        options = [s.name(args.settings.names_language) for s in pokedex.all_species()]
         generations = random_generations(args)
-    except ValueError as error:
-        fail(args, str(error))
-    random_label = f"{RANDOM} (generation {','.join(map(str, generations))})" if generations else RANDOM
-    choice = choose(args.menu, [random_label] + names)
+    except (OSError, ValueError) as error:
+        fail(args, explain(error))
+    random_label = text("random_from", generations=",".join(map(str, generations))) if generations else text("random")
+    choice = choose(args.menu, [random_label] + options)
     if choice:
         spawn(args, None if choice == random_label else choice)
 
@@ -125,10 +147,11 @@ def spawn_menu(args: argparse.Namespace) -> None:
 def despawn_menu(args: argparse.Namespace) -> None:
     members = party.load()
     if not members:
-        fail(args, "No Pokémon to despawn.")
-    options = [f"{m.uid}: {m.label}" for m in members] + [EVERYONE]
+        fail(args, text("nobody"))
+    everyone = text("everyone")
+    options = [f"{m.uid}: {label(m, args.settings)}" for m in members] + [everyone]
     choice = choose(args.menu, options)
-    if choice == EVERYONE:
+    if choice == everyone:
         despawn(args, None, everyone=True)
     elif choice:
         despawn(args, choice.split(":", 1)[0])
@@ -152,7 +175,7 @@ def main() -> None:
     p.add_argument("name", nargs="?", help="name of the berry (or its beginning), e.g. oran")
 
     commands.add_parser("list", help="show the party: number and name")
-    commands.add_parser("download", help="download all sprites now, for spawning without internet")
+    commands.add_parser("download", help="download all names and sprites now, for spawning without internet")
     commands.add_parser("names", help="show all Pokémon names")
     commands.add_parser("berries", help="show all berry names")
 
@@ -169,8 +192,14 @@ def main() -> None:
             sub.add_argument("--generations", help='random ones only from these generations, e.g. "1-4" (default: from the config file)')
 
     args = parser.parse_args()
+    try:
+        args.settings = config.load()
+    except ValueError as error:
+        sys.exit(f"waybar-pokemon: {error}")
+    i18n.set_language(args.settings.ui_language)
+
     if args.command == "daemon":
-        daemon.run(config.load())
+        daemon.run(args.settings)
     elif args.command == "spawn":
         spawn(args, args.pokemon)
     elif args.command == "despawn":
@@ -179,13 +208,13 @@ def main() -> None:
         berry(args, args.name)
     elif args.command == "list":
         for member in party.load():
-            print(f"{member.uid}: {member.label}")
+            print(f"{member.uid}: {label(member, args.settings)}")
     elif args.command == "download":
         download()
     elif args.command == "names":
-        print("\n".join(s.display_name for s in pokedex.all_species()))
+        print("\n".join(s.name(args.settings.names_language) for s in pokedex.all_species()))
     elif args.command == "berries":
-        print("\n".join(berries.display_name(n) for n in berries.NAMES))
+        print("\n".join(berries.display_name(n, args.settings.names_language) for n in berries.NAMES))
     elif args.command == "spawn-menu":
         spawn_menu(args)
     elif args.command == "despawn-menu":

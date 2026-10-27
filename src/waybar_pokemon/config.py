@@ -7,7 +7,8 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import paths
+from . import i18n, paths
+from .pokemon import names
 
 
 @dataclass
@@ -26,6 +27,10 @@ class Config:
     # How often a wild berry falls from the sky while there are Pokémon, on
     # average. 0 turns it off.
     wild_berries_per_hour: float = 1.0
+    # Language of the Pokémon and berry names, as in the games, e.g. "de".
+    names_language: str = "en"
+    # Language of everything else: notifications, menus, messages.
+    ui_language: str = "en"
 
     @property
     def frame_path(self) -> Path:
@@ -50,6 +55,10 @@ def load(path: Path = paths.CONFIG_FILE) -> Config:
         else:
             value = type(default)(value)
         setattr(config, key, value)
+    if config.names_language not in names.LANGUAGES:
+        raise ValueError(f"{path}: unknown names_language '{config.names_language}' (available: {', '.join(names.LANGUAGES)})")
+    if config.ui_language not in i18n.LANGUAGES:
+        raise ValueError(f"{path}: unknown ui_language '{config.ui_language}' (available: {', '.join(i18n.LANGUAGES)})")
     return config
 
 

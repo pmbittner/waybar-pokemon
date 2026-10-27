@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Iterator
 
 from .. import paths
-from . import pokedex
+from . import names
+from .web import download
 
 # The bag icons of the games, from PokéSprite (32 x 32).
 SPRITE_URL = "https://raw.githubusercontent.com/msikma/pokesprite/master/items/berry/{name}.png"
@@ -29,18 +30,17 @@ NAMES = (
 )
 
 
-def display_name(name: str) -> str:
-    return name.replace("-", " ").title() + " Berry"
+def display_name(name: str, language: str) -> str:
+    """The name in a language of the games, e.g. "Sinelbeere" for "oran" in "de"."""
+    return names.item(f"{name}-berry", language, fallback=name.replace("-", " ").title() + " Berry")
 
 
-def find(query: str) -> str:
-    """A berry by its name or a unique beginning of it, e.g. "sit" or "Oran Berry"."""
-    key = query.strip().lower().removesuffix("berry").strip().replace(" ", "-")
-    matches = [n for n in NAMES if n == key] or [n for n in NAMES if n.startswith(key)]
-    if len(matches) != 1:
-        found = ", ".join(display_name(n) for n in matches[:5])
-        raise LookupError(f"'{query}' matches {len(matches)} berries" + (f": {found}" if found else ""))
-    return matches[0]
+def find(query: str, language: str) -> str:
+    """A berry by its name in the given language or in English, or a unique
+    beginning of it, e.g. "sit" or "Oran Berry". Raises names.NotFound
+    otherwise."""
+    candidates = ((n, [display_name(n, language), display_name(n, "en"), n]) for n in NAMES)
+    return names.match(query, candidates, lambda n: display_name(n, language))
 
 
 def random_name(rng: random.Random | None = None) -> str:
@@ -51,7 +51,7 @@ def sprite_path(name: str) -> Path:
     """The cached sprite of a berry, downloaded if missing."""
     path = paths.SPRITE_DIR / "berries" / f"{name}.png"
     if not path.exists():
-        pokedex.download(SPRITE_URL.format(name=name), path)
+        download(SPRITE_URL.format(name=name), path)
     return path
 
 

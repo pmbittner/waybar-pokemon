@@ -62,7 +62,7 @@ class Habitat(Scene):
             path = pokedex.sprite_path(member.species_id, member.shiny)
             sprite = load_sprite(path, self.stage.height - 2)
         except Exception as error:  # e.g. no network for a missing sprite
-            print(f"waybar-pokemon: cannot load {member.name}: {error}", file=sys.stderr)
+            print(f"waybar-pokemon: cannot load Pokémon #{member.species_id}: {error}", file=sys.stderr)
             return
         sparkle = Sparkle.start(self.stage.rng) if member.shiny else None
         self.pokemon[member.uid] = Pokemon.drop_in(sprite, self.stage, sparkle=sparkle)
@@ -73,7 +73,7 @@ class Habitat(Scene):
         try:
             image = load_sprite(berries.sprite_path(name), self.stage.height - 2).left
         except Exception as error:
-            print(f"waybar-pokemon: cannot load the {berries.display_name(name)}: {error}", file=sys.stderr)
+            print(f"waybar-pokemon: cannot load the {name} berry: {error}", file=sys.stderr)
             return
         self.berries.append(Berry.drop_in(image, self.stage))
 

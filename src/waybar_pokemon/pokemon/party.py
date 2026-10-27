@@ -8,7 +8,7 @@ changes.
 import fcntl
 import json
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from typing import Iterator
 
 from .. import paths
@@ -20,12 +20,7 @@ MAX_SIZE = 10  # more would not fit into a small habitat
 class Member:
     uid: int  # unique within the party, to tell apart two of the same species
     species_id: int
-    name: str
     shiny: bool
-
-    @property
-    def label(self) -> str:
-        return f"{self.name}{' ✨' if self.shiny else ''}"
 
 
 def load() -> list[Member]:
@@ -33,7 +28,8 @@ def load() -> list[Member]:
         data = json.loads(paths.PARTY_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         return []
-    return [Member(**member) for member in data]
+    known = {f.name for f in fields(Member)}  # older files also have a name
+    return [Member(**{k: v for k, v in member.items() if k in known}) for member in data]
 
 
 def _save(members: list[Member]) -> None:

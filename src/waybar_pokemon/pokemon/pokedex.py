@@ -1,6 +1,7 @@
-"""Pokémon names and sprites, downloaded on first use and cached.
+"""Pokémon species and sprites, downloaded on first use and cached.
 
-Names come from PokeAPI's species table. Sprites are the small box icons
+Species come from PokeAPI's species table, their names in all languages
+from names.py. Sprites are the small box icons
 of the games (68 x 56, normal and shiny) from the PokéSprite project: the
 classic icons of generation 7 where there is one (Pokémon up to generation
 7), else the icons of generation 8. For Pokémon without any icon there (the
@@ -9,11 +10,8 @@ fetched from GitHub.
 """
 
 import csv
-import os
 import random
-import threading
 import urllib.error
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from functools import cache, partial
@@ -21,6 +19,8 @@ from pathlib import Path
 from typing import Callable, Collection
 
 from .. import paths
+from . import names
+from .web import download
 
 SPECIES_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon_species.csv"
 ICON_URL = "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-{icon_set}/{variant}/{name}.png"
@@ -34,23 +34,18 @@ SHINY_ODDS = 4096
 @dataclass(frozen=True)
 class Species:
     id: int
-    name: str  # e.g. "mr-mime"
+    identifier: str  # e.g. "mr-mime"
     generation: int
 
-    @property
-    def display_name(self) -> str:
-        return self.name.replace("-", " ").title()
+    def name(self, language: str) -> str:
+        """The name in a language of the games, e.g. "Pantimos" in "de"."""
+        return names.species(self.id, language, fallback=self.identifier.replace("-", " ").title())
 
 
-def download(url: str, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "waybar-pokemon"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        data = response.read()
-    # A unique temporary name, as the daemon may download in the background.
-    temporary = destination.with_name(f".{destination.name}.{os.getpid()}.{threading.get_ident()}.part")
-    temporary.write_bytes(data)
-    temporary.replace(destination)
+class NoCandidates(LookupError):
+    def __init__(self, generations: Collection[int]) -> None:
+        super().__init__(f"No Pokémon in generations {sorted(generations)}")
+        self.generations = sorted(generations)
 
 
 @cache
@@ -64,30 +59,30 @@ def all_species() -> list[Species]:
     return sorted(species, key=lambda s: s.id)
 
 
-def find(query: str) -> Species:
-    """Looks up a species by Pokédex number or (case-insensitive) name.
+def get(species_id: int) -> Species:
+    return next(s for s in all_species() if s.id == species_id)
 
-    A unique beginning of a name is enough, e.g. "pika".
+
+def find(query: str, language: str) -> Species:
+    """Looks up a species by Pokédex number or name, in the given language
+    or in English. A unique beginning of a name is enough, e.g. "pika".
+    Raises names.NotFound otherwise.
     """
     species = all_species()
-    if query.isdigit():
+    if query.strip().isdigit():
         matches = [s for s in species if s.id == int(query)]
-    else:
-        key = query.strip().lower().replace(" ", "-")
-        matches = [s for s in species if s.name == key] or [
-            s for s in species if s.name.startswith(key)
-        ]
-    if len(matches) != 1:
-        found = ", ".join(s.display_name for s in matches[:5])
-        raise LookupError(f"'{query}' matches {len(matches)} Pokémon" + (f": {found}" if found else ""))
-    return matches[0]
+        if len(matches) != 1:
+            raise names.NotFound(query, 0, [])
+        return matches[0]
+    candidates = ((s, [s.name(language), s.name("en"), s.identifier]) for s in species)
+    return names.match(query, candidates, lambda s: s.name(language))
 
 
 def random_species(generations: Collection[int] = ()) -> Species:
     """A random species, only from the given generations if any are given."""
     candidates = [s for s in all_species() if not generations or s.generation in generations]
     if not candidates:
-        raise LookupError(f"No Pokémon in generations {sorted(generations)}")
+        raise NoCandidates(generations)
     return random.choice(candidates)
 
 
@@ -102,7 +97,7 @@ def sprite_path(species_id: int, shiny: bool) -> Path:
     path = paths.SPRITE_DIR / "+".join(ICON_SETS) / f"{species_id}{'-shiny' if shiny else ''}.png"
     if path.exists():
         return path
-    name = next(s.name for s in all_species() if s.id == species_id)
+    name = get(species_id).identifier
     variant = "shiny" if shiny else "regular"
     urls = [ICON_URL.format(icon_set=icon_set, variant=variant, name=name) for icon_set in ICON_SETS]
     urls.append(SPRITE_URL.format(variant="shiny/" if shiny else "", id=species_id))
@@ -118,12 +113,13 @@ def sprite_path(species_id: int, shiny: bool) -> Path:
 
 
 def download_all(progress: Callable[[int, int], None] | None = None) -> int:
-    """Downloads the sprites of all species (normal and shiny) and of all
-    berries that are not cached yet. Returns the number of sprites that
-    could not be downloaded.
+    """Downloads the names, and the sprites of all species (normal and
+    shiny) and of all berries that are not cached yet. Returns the number
+    of sprites that could not be downloaded.
     """
     from . import berries  # (berries uses this module)
 
+    names.download_all()
     jobs: list[Callable[[], Path]] = [partial(sprite_path, s.id, shiny) for s in all_species() for shiny in (False, True)]
     jobs += [partial(berries.sprite_path, name) for name in berries.NAMES]
     failed = 0
