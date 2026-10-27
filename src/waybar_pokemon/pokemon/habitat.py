@@ -29,7 +29,7 @@ class Habitat(Scene):
         self.pokemon: dict[int, Pokemon] = {}  # by party uid
         self.berries: list[Berry] = []
         self.wild_berries_per_hour = wild_berries_per_hour
-        self._party_version: int | None = None
+        self._party: bytes | None = None  # the party file's content when last read
 
     def entities(self) -> Iterable[Entity]:
         return itertools.chain(self.berries, self.pokemon.values())  # berries behind
@@ -42,10 +42,10 @@ class Habitat(Scene):
             self.drop_berry(name)
 
     def _sync_party(self) -> None:
-        version = _modification_time()
-        if version == self._party_version:
+        content = _read(paths.PARTY_FILE)
+        if content == self._party:
             return
-        self._party_version = version
+        self._party = content
 
         members = party.load()
         uids = {m.uid for m in members}
@@ -113,8 +113,10 @@ class Habitat(Scene):
                 p.give_up(self.stage)
 
 
-def _modification_time() -> int | None:
+def _read(path) -> bytes | None:
+    # The content, not the modification time: two saves within the time's
+    # resolution would look like one. The file is small.
     try:
-        return paths.PARTY_FILE.stat().st_mtime_ns
+        return path.read_bytes()
     except FileNotFoundError:
         return None
