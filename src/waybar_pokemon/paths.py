@@ -8,10 +8,9 @@ def _xdg_dir(variable: str, fallback: str) -> Path:
     return Path(os.environ.get(variable) or Path.home() / fallback)
 
 
-# Downloaded data: the species list and the sprites.
+# Downloaded data: PokeAPI's tables and the sprites.
 CACHE_DIR = _xdg_dir("XDG_CACHE_HOME", ".cache") / "waybar-pokemon"
 SPRITE_DIR = CACHE_DIR / "sprites"
-SPECIES_FILE = CACHE_DIR / "species.csv"
 
 # The current party, kept across restarts.
 STATE_DIR = _xdg_dir("XDG_STATE_HOME", ".local/state") / "waybar-pokemon"

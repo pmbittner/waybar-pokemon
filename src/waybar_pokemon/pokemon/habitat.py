@@ -14,7 +14,7 @@ from typing import Iterable
 
 from .. import paths
 from ..engine import Entity, Scene, Stage, load_sprite
-from . import berries, party, pokedex
+from . import berries, party, sprites
 from .berry import Berry
 from .creature import Pokemon
 from .sparkle import Sparkle
@@ -59,7 +59,7 @@ class Habitat(Scene):
     def _add(self, member: party.Member) -> None:
         try:
             # A little smaller than the habitat, so hopping stays inside.
-            path = pokedex.sprite_path(member.species_id, member.shiny)
+            path = sprites.pokemon(member.species_id, member.shiny)
             sprite = load_sprite(path, self.stage.height - 2)
         except Exception as error:  # e.g. no network for a missing sprite
             print(f"waybar-pokemon: cannot load Pokémon #{member.species_id}: {error}", file=sys.stderr)
@@ -71,7 +71,7 @@ class Habitat(Scene):
         if len(self.berries) >= MAX_BERRIES:
             return
         try:
-            image = load_sprite(berries.sprite_path(name), self.stage.height - 2).left
+            image = load_sprite(sprites.berry(name), self.stage.height - 2).left
         except Exception as error:
             print(f"waybar-pokemon: cannot load the {name} berry: {error}", file=sys.stderr)
             return

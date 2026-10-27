@@ -7,7 +7,7 @@ import threading
 
 from . import engine, paths
 from .config import Config
-from .pokemon import pokedex
+from .pokemon import sprites
 from .pokemon.habitat import Habitat
 
 
@@ -37,7 +37,7 @@ def run(config: Config) -> None:
 def _cache_all_sprites() -> None:
     """Downloads the missing sprites (see Config.cache_all_sprites)."""
     try:
-        failed = pokedex.download_all()
+        failed = sprites.download_all()
     except OSError as error:  # e.g. the species list cannot be downloaded
         print(f"waybar-pokemon: cannot cache the sprites: {error}", file=sys.stderr)
         return

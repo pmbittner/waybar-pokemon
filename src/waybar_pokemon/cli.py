@@ -8,7 +8,7 @@ import sys
 
 from . import config, daemon, i18n
 from .i18n import text
-from .pokemon import berries, names, party, pokedex
+from .pokemon import berries, names, party, pokedex, sprites
 
 DEFAULT_MENU = "rofi -dmenu -i -p Pokémon"
 
@@ -54,7 +54,7 @@ def spawn(args: argparse.Namespace, query: str | None) -> None:
     try:
         species = pokedex.find(query, language) if query else pokedex.random_species(random_generations(args))
         shiny = args.shiny or pokedex.roll_shiny()
-        pokedex.sprite_path(species.id, shiny)  # download now, so errors show here
+        sprites.pokemon(species.id, shiny)  # download now, so errors show here
     except (LookupError, OSError, ValueError) as error:
         fail(args, explain(error))
     with party.editing() as members:
@@ -101,7 +101,7 @@ def berry(args: argparse.Namespace, query: str | None) -> None:
     language = args.settings.names_language
     try:
         name = berries.find(query, language) if query else berries.random_name()
-        berries.sprite_path(name)  # download now, so errors show here
+        sprites.berry(name)  # download now, so errors show here
         display_name = berries.display_name(name, language)
     except (LookupError, OSError) as error:
         fail(args, explain(error, "no_berry", "many_berries"))
@@ -115,7 +115,7 @@ def download() -> None:
         print("\r" + text("progress", done=done, total=total), end="", file=sys.stderr, flush=True)
 
     try:
-        failed = pokedex.download_all(progress)
+        failed = sprites.download_all(progress)
     except OSError as error:
         print(f"\nwaybar-pokemon: {explain(error)}", file=sys.stderr)
         sys.exit(1)

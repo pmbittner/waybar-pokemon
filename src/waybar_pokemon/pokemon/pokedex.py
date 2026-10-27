@@ -1,31 +1,12 @@
-"""Pokémon species and sprites, downloaded on first use and cached.
+"""Pokémon species: Pokédex number, generation and names (from PokeAPI's
+tables), lookup, random choice and the shiny chance."""
 
-Species come from PokeAPI's species table, their names in all languages
-from names.py. Sprites are the small box icons
-of the games (68 x 56, normal and shiny) from the PokéSprite project: the
-classic icons of generation 7 where there is one (Pokémon up to generation
-7), else the icons of generation 8. For Pokémon without any icon there (the
-newest ones), PokeAPI's larger front sprites are used instead. Everything is
-fetched from GitHub.
-"""
-
-import csv
 import random
-import urllib.error
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from functools import cache, partial
-from pathlib import Path
-from typing import Callable, Collection
+from functools import cache
+from typing import Collection
 
-from .. import paths
-from . import names
-from .web import download
-
-SPECIES_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/pokemon_species.csv"
-ICON_URL = "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-{icon_set}/{variant}/{name}.png"
-ICON_SETS = ("gen7x", "gen8")  # tried in this order
-SPRITE_URL = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{variant}{id}.png"
+from . import data, names
 
 # The chance of a shiny Pokémon in the games since generation 6.
 SHINY_ODDS = 4096
@@ -51,16 +32,18 @@ class NoCandidates(LookupError):
 @cache
 def all_species() -> list[Species]:
     """All species, ordered by Pokédex number (read once per process)."""
-    if not paths.SPECIES_FILE.exists():
-        download(SPECIES_URL, paths.SPECIES_FILE)
-    with paths.SPECIES_FILE.open(newline="") as file:
-        rows = csv.DictReader(file)
-        species = [Species(int(row["id"]), row["identifier"], int(row["generation_id"])) for row in rows]
-    return sorted(species, key=lambda s: s.id)
+    rows = data.rows("pokemon_species")
+    return sorted((Species(int(r["id"]), r["identifier"], int(r["generation_id"])) for r in rows), key=lambda s: s.id)
+
+
+@cache
+def _by_id() -> dict[int, Species]:
+    return {s.id: s for s in all_species()}
 
 
 def get(species_id: int) -> Species:
-    return next(s for s in all_species() if s.id == species_id)
+    """The species with the given Pokédex number (KeyError if unknown)."""
+    return _by_id()[species_id]
 
 
 def find(query: str, language: str) -> Species:
@@ -88,47 +71,3 @@ def random_species(generations: Collection[int] = ()) -> Species:
 
 def roll_shiny() -> bool:
     return random.randrange(SHINY_ODDS) == 0
-
-
-def sprite_path(species_id: int, shiny: bool) -> Path:
-    """The cached sprite (box icon, or front sprite as fallback), downloaded if missing."""
-    # One directory per choice of icons, so changing ICON_SETS downloads
-    # the new icons instead of reusing the cached ones.
-    path = paths.SPRITE_DIR / "+".join(ICON_SETS) / f"{species_id}{'-shiny' if shiny else ''}.png"
-    if path.exists():
-        return path
-    name = get(species_id).identifier
-    variant = "shiny" if shiny else "regular"
-    urls = [ICON_URL.format(icon_set=icon_set, variant=variant, name=name) for icon_set in ICON_SETS]
-    urls.append(SPRITE_URL.format(variant="shiny/" if shiny else "", id=species_id))
-    for url in urls[:-1]:
-        try:
-            download(url, path)
-            return path
-        except urllib.error.HTTPError as error:
-            if error.code != 404:
-                raise
-    download(urls[-1], path)
-    return path
-
-
-def download_all(progress: Callable[[int, int], None] | None = None) -> int:
-    """Downloads the names, and the sprites of all species (normal and
-    shiny) and of all berries that are not cached yet. Returns the number
-    of sprites that could not be downloaded.
-    """
-    from . import berries  # (berries uses this module)
-
-    names.download_all()
-    jobs: list[Callable[[], Path]] = [partial(sprite_path, s.id, shiny) for s in all_species() for shiny in (False, True)]
-    jobs += [partial(berries.sprite_path, name) for name in berries.NAMES]
-    failed = 0
-    # A few downloads at a time; one by one takes several minutes.
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = [pool.submit(job) for job in jobs]
-        for done, future in enumerate(as_completed(futures), start=1):
-            if isinstance(future.exception(), OSError):
-                failed += 1
-            if progress:
-                progress(done, len(jobs))
-    return failed

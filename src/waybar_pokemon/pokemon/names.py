@@ -1,20 +1,15 @@
 """Names of Pokémon and berries in the languages of the games, and looking
 them up by what the user typed.
 
-The names come from PokeAPI's tables, downloaded on first use and cached.
+The names come from PokeAPI's tables (data.py).
 A name missing in a language falls back to English.
 """
 
-import csv
 import unicodedata
 from functools import cache
-from typing import Callable, Hashable, Iterable, Iterator, TypeVar
+from typing import Callable, Hashable, Iterable, TypeVar
 
-from .. import paths
-from .web import download
-
-TABLE_URL = "https://raw.githubusercontent.com/PokeAPI/pokeapi/master/data/v2/csv/{table}.csv"
-TABLES = ("pokemon_species_names", "items", "item_names")
+from . import data
 
 # The languages with names, by PokeAPI's identifiers and ids.
 LANGUAGES = {
@@ -33,36 +28,18 @@ class NotFound(LookupError):
         self.query, self.count, self.matches = query, count, matches
 
 
-def download_all() -> None:
-    """Downloads the tables that are not cached yet."""
-    for table in TABLES:
-        _path(table)
-
-
-def _path(table: str):
-    path = paths.CACHE_DIR / f"{table}.csv"
-    if not path.exists():
-        download(TABLE_URL.format(table=table), path)
-    return path
-
-
-def _rows(table: str) -> Iterator[dict[str, str]]:
-    with _path(table).open(newline="", encoding="utf-8") as file:
-        yield from csv.DictReader(file)
-
-
 @cache
 def _species_names(language: str) -> dict[int, str]:
     language_id = str(LANGUAGES[language])
-    return {int(r["pokemon_species_id"]): r["name"] for r in _rows("pokemon_species_names") if r["local_language_id"] == language_id}
+    return {int(r["pokemon_species_id"]): r["name"] for r in data.rows("pokemon_species_names") if r["local_language_id"] == language_id}
 
 
 @cache
 def _item_names(language: str) -> dict[str, str]:
     """By the item's identifier, e.g. "oran-berry"."""
-    identifiers = {r["id"]: r["identifier"] for r in _rows("items")}
+    identifiers = {r["id"]: r["identifier"] for r in data.rows("items")}
     language_id = str(LANGUAGES[language])
-    return {identifiers[r["item_id"]]: r["name"] for r in _rows("item_names") if r["local_language_id"] == language_id and r["item_id"] in identifiers}
+    return {identifiers[r["item_id"]]: r["name"] for r in data.rows("item_names") if r["local_language_id"] == language_id and r["item_id"] in identifiers}
 
 
 def species(species_id: int, language: str, fallback: str) -> str:

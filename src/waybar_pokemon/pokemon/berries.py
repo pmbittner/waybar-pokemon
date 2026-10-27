@@ -1,4 +1,4 @@
-"""Berries: their names and sprites, and the requests to drop one.
+"""Berries: their names, and the requests to drop one.
 
 The berry command adds a request to a small file; the daemon takes the
 requests and drops the berries. Unlike the party, berries are not kept
@@ -8,16 +8,13 @@ across restarts.
 import fcntl
 import random
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Iterator
 
 from .. import paths
 from . import names
-from .web import download
 
-# The bag icons of the games, from PokéSprite (32 x 32).
-SPRITE_URL = "https://raw.githubusercontent.com/msikma/pokesprite/master/items/berry/{name}.png"
-
+# The berries with icons in PokéSprite (see sprites.py), by PokeAPI's
+# identifiers without "-berry".
 NAMES = (
     "aguav", "apicot", "aspear", "babiri", "belue", "bluk", "charti", "cheri", "chesto", "chilan",
     "chople", "coba", "colbur", "cornn", "custap", "durin", "enigma", "figy", "ganlon",
@@ -45,14 +42,6 @@ def find(query: str, language: str) -> str:
 
 def random_name(rng: random.Random | None = None) -> str:
     return (rng or random).choice(NAMES)
-
-
-def sprite_path(name: str) -> Path:
-    """The cached sprite of a berry, downloaded if missing."""
-    path = paths.SPRITE_DIR / "berries" / f"{name}.png"
-    if not path.exists():
-        download(SPRITE_URL.format(name=name), path)
-    return path
 
 
 @contextmanager

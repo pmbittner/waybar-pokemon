@@ -52,7 +52,7 @@ def _write(path: Path, header: list[str], rows: list[tuple]) -> None:
 
 def write_tables(cache: Path) -> None:
     en, de = names.LANGUAGES["en"], names.LANGUAGES["de"]
-    _write(cache / "species.csv", ["id", "identifier", "generation_id"], [(i, s, g) for i, s, g, _, _ in SPECIES])
+    _write(cache / "pokemon_species.csv", ["id", "identifier", "generation_id"], [(i, s, g) for i, s, g, _, _ in SPECIES])
     _write(
         cache / "pokemon_species_names.csv",
         ["pokemon_species_id", "local_language_id", "name", "genus"],
@@ -68,6 +68,7 @@ def write_tables(cache: Path) -> None:
 
 def clear_caches() -> None:
     pokedex.all_species.cache_clear()
+    pokedex._by_id.cache_clear()
     names._species_names.cache_clear()
     names._item_names.cache_clear()
 
@@ -96,11 +97,11 @@ def home(monkeypatch):
 @pytest.fixture
 def sprites():
     """Creates cached sprites for all species and berries of the tables."""
-    from waybar_pokemon.pokemon import berries
+    from waybar_pokemon.pokemon import berries, sprites
 
     for species_id, *_ in SPECIES:
         for shiny in (False, True):
             name = f"{species_id}{'-shiny' if shiny else ''}.png"
-            fake_sprite(paths.SPRITE_DIR / "+".join(pokedex.ICON_SETS) / name)
+            fake_sprite(paths.SPRITE_DIR / "+".join(sprites.ICON_SETS) / name)
     for name in berries.NAMES:
         fake_sprite(paths.SPRITE_DIR / "berries" / f"{name}.png", (10, 10))
