@@ -138,4 +138,4 @@ To decide with a prototype: which edge, which layer, and whether it should react
 
 ## Packaging
 
-**Decision:** uv with its build backend (`uv_build`), and a Nix package built from the same `pyproject.toml`. The project is still developed inside a dotfiles repository; it will become its own repository with the Nix package.
+**Decision:** uv with its build backend (`uv_build`), and a Nix package built from the same `pyproject.toml`. It started inside a dotfiles repository and moved into its own repository with its history; the dotfiles pin it.

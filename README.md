@@ -2,7 +2,14 @@
 
 Little Pokémon walking around in a [waybar](https://github.com/Alexays/Waybar) module, inspired by the vscode-pokemon extension. Spawn specific or random Pokémon, despawn them again, and with the same chance as in the games (1 in 4096), one turns out shiny and sparkles.
 
-Prototype: it is developed inside a dotfiles repository and meant to become its own repository and Nix package later.
+It started inside a [dotfiles repository](https://github.com/pmbittner/dotfiles) and is still young: expect changes.
+
+## Installation
+
+- **Nix:** the repository's `default.nix` is a package for `callPackage`, e.g. `pkgs.callPackage (builtins.fetchTarball "https://github.com/pmbittner/waybar-pokemon/archive/main.tar.gz") { }`, or pinned with a tool like [lon](https://github.com/nikstur/lon) or niv.
+- **uv:** `uv tool install git+https://github.com/pmbittner/waybar-pokemon`.
+
+Then start `waybar-pokemon daemon` with your compositor and add the module to your bar (see [Integrations](#integrations)).
 
 ## How it works
 
@@ -109,6 +116,8 @@ Not possible: bars whose modules only show text, such as polybar, i3bar, swaybar
 Planned: an output that is a small Wayland overlay of its own, without any bar (see [DESIGN.md](DESIGN.md)).
 
 ## Development
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `build:`).
 
 The project uses [uv](https://docs.astral.sh/uv/): `uv run waybar-pokemon ...` runs it from the source tree, `uv run pytest` runs the tests, `uv build` builds it. The tests need no network and no display; the Nix build runs them too. The Nix package (`default.nix`) builds it with uv's build backend and the nixpkgs version of Pillow.
 
