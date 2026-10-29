@@ -1,5 +1,7 @@
 # waybar-pokemon
 
+> !DISCLAIMER: This is a vibe-coded project. I am an experienced programmer but for this project, I let Claude write all of the code. I made occasional code reviews and gave high-level feedback on architecture and design decisions. The project and most design decisions were my ideas but Claude implemented and documented everything. I give no warranty on security and performance of this project but everybody is welcome to use it at their own risk.
+
 Little Pokémon walking around in a [waybar](https://github.com/Alexays/Waybar) module, inspired by the vscode-pokemon extension. Spawn specific or random Pokémon, despawn them again, and with the same chance as in the games (1 in 4096), one turns out shiny and sparkles.
 
 It started inside a [dotfiles repository](https://github.com/pmbittner/dotfiles) and is still young: expect changes.
